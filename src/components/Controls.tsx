@@ -1,6 +1,6 @@
 import React from 'react';
 import { GameMode, PlayerSymbol, AIDifficulty } from '../types';
-import { RotateCcw, Lightbulb, Flag, Play, Bot, User, Clock, ShieldAlert } from 'lucide-react';
+import { RotateCcw, Lightbulb, Flag, Play, Bot, Clock, Check, X } from 'lucide-react';
 
 interface ControlsProps {
   mode: GameMode;
@@ -17,6 +17,7 @@ interface ControlsProps {
   onHint: () => void;
   onSurrender: () => void;
   onRestart: () => void;
+  onDeclineRematch?: () => void;
   canUndo: boolean;
   gameStatus: 'waiting' | 'playing' | 'ended';
   winner: PlayerSymbol | 'DRAW' | null;
@@ -25,6 +26,8 @@ interface ControlsProps {
   isSpectator?: boolean;
   rematchRequestedByMe?: boolean;
   rematchRequestedByOpponent?: boolean;
+  hasStartedMoves?: boolean;
+  surrenderBy?: PlayerSymbol | null;
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -42,6 +45,7 @@ export const Controls: React.FC<ControlsProps> = ({
   onHint,
   onSurrender,
   onRestart,
+  onDeclineRematch,
   canUndo,
   gameStatus,
   winner,
@@ -50,9 +54,15 @@ export const Controls: React.FC<ControlsProps> = ({
   isSpectator = false,
   rematchRequestedByMe = false,
   rematchRequestedByOpponent = false,
+  hasStartedMoves = true,
+  surrenderBy,
 }) => {
   // Timer bar percentage
   const timerPercent = turnTimeLeft !== null && maxTurnTime > 0 ? (turnTimeLeft / maxTurnTime) * 100 : 100;
+  const currentTurnName = currentTurn === 'X' ? p1Name : p2Name;
+
+  const isXTurn = currentTurn === 'X' && gameStatus === 'playing';
+  const isOTurn = currentTurn === 'O' && gameStatus === 'playing';
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-3 my-2 select-none">
@@ -64,11 +74,11 @@ export const Controls: React.FC<ControlsProps> = ({
         {/* Player X Info */}
         <div
           className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all w-full sm:w-auto ${
-            currentTurn === 'X' && gameStatus === 'playing'
-              ? 'text-white shadow-md font-bold scale-102'
-              : 'text-amber-900 border border-amber-200/60 opacity-80'
+            isXTurn
+              ? 'border-2 border-teal-500 shadow-md font-bold scale-102'
+              : 'border border-amber-200/60 opacity-80'
           }`}
-          style={{ backgroundColor: '#FFFBEB' }}
+          style={{ backgroundColor: isXTurn ? '#D1F5EA' : '#FFFBEB' }}
         >
           <div
             className="w-8 h-8 rounded-lg text-white font-extrabold flex items-center justify-center text-lg shadow-xs"
@@ -77,7 +87,10 @@ export const Controls: React.FC<ControlsProps> = ({
             ✕
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold truncate max-w-[140px]" style={{ color: '#300202', fontSize: '16px' }}>
+            <span
+              className="text-sm font-bold truncate max-w-[140px]"
+              style={{ color: isXTurn ? '#0f766e' : '#300202', fontSize: '16px' }}
+            >
               {p1Name}
             </span>
           </div>
@@ -89,37 +102,51 @@ export const Controls: React.FC<ControlsProps> = ({
             <div className="flex flex-col items-center gap-1">
               <span
                 className="text-xs font-bold uppercase tracking-wide flex items-center gap-1"
-                style={{ color: '#ffffff', fontSize: '18px' }}
+                style={{ color: '#ffffff', fontSize: '17px' }}
               >
-                Lượt: <span className={currentTurn === 'X' ? 'font-extrabold' : 'font-extrabold'} style={{ color: '#ffffff' }}>{currentTurn}</span>
+                Lượt đi: <span className="font-extrabold text-amber-200">{currentTurnName}</span>
               </span>
 
               {/* Turn Time Bar */}
-              {turnTimeLeft !== null && maxTurnTime > 0 && (
-                <div
-                  className="w-28 sm:w-36 h-2 rounded-full overflow-hidden border border-amber-300"
-                  style={{ backgroundColor: '#fef586' }}
-                >
-                  <div
-                    className={`h-full transition-all duration-1000 ${
-                      turnTimeLeft <= 5 ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'
-                    }`}
-                    style={{ width: `${timerPercent}%` }}
-                  />
-                </div>
-              )}
-              {turnTimeLeft !== null && maxTurnTime > 0 && (
-                <span
-                  className="font-mono font-extrabold flex items-center gap-1 drop-shadow-xs"
-                  style={{ color: '#ffffff', fontSize: '16px' }}
-                >
-                  <Clock className="w-4 h-4 text-white" /> {turnTimeLeft}s
+              {!hasStartedMoves ? (
+                <span className="text-xs font-bold text-amber-100 bg-amber-900/40 px-2 py-0.5 rounded-full">
+                  Chờ nước đầu tiên...
                 </span>
+              ) : (
+                <>
+                  {turnTimeLeft !== null && maxTurnTime > 0 && (
+                    <div
+                      className="w-28 sm:w-36 h-2 rounded-full overflow-hidden border border-amber-300"
+                      style={{ backgroundColor: '#fef586' }}
+                    >
+                      <div
+                        className={`h-full transition-all duration-1000 ${
+                          turnTimeLeft <= 5 ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'
+                        }`}
+                        style={{ width: `${timerPercent}%` }}
+                      />
+                    </div>
+                  )}
+                  {turnTimeLeft !== null && maxTurnTime > 0 && (
+                    <span
+                      className="font-mono font-extrabold flex items-center gap-1 drop-shadow-xs"
+                      style={{ color: '#ffffff', fontSize: '16px' }}
+                    >
+                      <Clock className="w-4 h-4 text-white" /> {turnTimeLeft}s
+                    </span>
+                  )}
+                </>
               )}
             </div>
           ) : winner ? (
-            <span className="text-sm font-extrabold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 animate-bounce">
-              {winner === 'DRAW' ? 'Hòa cờ!' : `Thắng: ${winner}`}
+            <span className="text-sm font-extrabold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300 animate-bounce text-center max-w-xs">
+              {surrenderBy
+                ? `${surrenderBy === 'X' ? p1Name : p2Name} đã đầu hàng. Chiến thắng thuộc về ${
+                    surrenderBy === 'X' ? p2Name : p1Name
+                  }`
+                : winner === 'DRAW'
+                ? 'Hòa cờ!'
+                : `Chúc mừng ${winner === 'X' ? p1Name : p2Name} đã thắng ván cờ.`}
             </span>
           ) : (
             <span className="text-xs font-bold text-amber-800 bg-amber-200/60 px-2.5 py-1 rounded-full">
@@ -131,13 +158,17 @@ export const Controls: React.FC<ControlsProps> = ({
         {/* Player O Info */}
         <div
           className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all w-full sm:w-auto justify-end ${
-            currentTurn === 'O' && gameStatus === 'playing'
-              ? 'bg-rose-600 text-white shadow-md font-bold scale-102'
-              : 'bg-amber-50 text-amber-900 border border-amber-200/60 opacity-80'
+            isOTurn
+              ? 'border-2 border-teal-500 shadow-md font-bold scale-102'
+              : 'border border-amber-200/60 opacity-80'
           }`}
+          style={{ backgroundColor: isOTurn ? '#D1F5EA' : '#FFFBEB' }}
         >
           <div className="flex flex-col text-right">
-            <span className="text-sm font-bold truncate max-w-[140px]" style={{ color: '#300202', fontSize: '16px' }}>
+            <span
+              className="text-sm font-bold truncate max-w-[140px]"
+              style={{ color: isOTurn ? '#0f766e' : '#300202', fontSize: '16px' }}
+            >
               {mode === 'vs-ai' ? (isAiThinking ? 'Máy AI (Đang nghĩ...)' : p2Name) : p2Name}
             </span>
           </div>
@@ -233,24 +264,41 @@ export const Controls: React.FC<ControlsProps> = ({
           <span style={{ color: '#C70036' }}>Đầu hàng</span>
         </button>
 
-        {/* New Game */}
-        <button
-          onClick={onRestart}
-          disabled={isSpectator || rematchRequestedByMe}
-          style={{ backgroundColor: rematchRequestedByOpponent ? '#10B981' : '#EA738D' }}
-          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl hover:bg-amber-800 text-white font-bold shadow-md transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-            rematchRequestedByOpponent ? 'animate-bounce' : ''
-          }`}
-        >
-          <Play className="w-4 h-4 fill-white" />
-          <span style={{ color: '#ffffff' }}>
-            {rematchRequestedByMe
-              ? 'Đang chờ đối thủ... (1/2)'
-              : rematchRequestedByOpponent
-              ? 'Chấp nhận Ván mới (1/2)'
-              : 'Ván mới'}
-          </span>
-        </button>
+        {/* New Game / Rematch buttons */}
+        {rematchRequestedByOpponent ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onRestart}
+              style={{ backgroundColor: '#10B981' }}
+              className="flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-white font-bold shadow-md hover:bg-emerald-600 transition-all cursor-pointer text-xs sm:text-sm animate-bounce"
+              title="Chấp nhận Ván mới"
+            >
+              <Check className="w-4 h-4" />
+              <span>Chấp nhận</span>
+            </button>
+            <button
+              onClick={onDeclineRematch}
+              style={{ backgroundColor: '#EF4444' }}
+              className="flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-xl text-white font-bold shadow-md hover:bg-rose-600 transition-all cursor-pointer text-xs sm:text-sm"
+              title="Từ chối Ván mới"
+            >
+              <X className="w-4 h-4" />
+              <span>Từ chối</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onRestart}
+            disabled={isSpectator || rematchRequestedByMe}
+            style={{ backgroundColor: '#EA738D' }}
+            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl hover:bg-amber-800 text-white font-bold shadow-md transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span style={{ color: '#ffffff' }}>
+              {rematchRequestedByMe ? 'Đang chờ đối thủ... (1/2)' : 'Ván mới'}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
