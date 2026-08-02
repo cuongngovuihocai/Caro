@@ -12,7 +12,7 @@ import {
   deleteDoc,
 } from '../lib/firebase';
 import { OnlineRoomState, PlayerSymbol, Move, ChatMessage } from '../types';
-import { createEmptyBoard, BOARD_SIZE } from '../utils/caroLogic';
+import { createEmptyBoard, BOARD_SIZE, serializeBoard, deserializeBoard } from '../utils/caroLogic';
 
 const ROOMS_COLLECTION = 'caro_rooms';
 
@@ -35,6 +35,7 @@ export async function createRoom(options: {
   const roomId = options.roomId?.trim() || generateRoomId();
   const roomRef = doc(db, ROOMS_COLLECTION, roomId);
 
+  const initialBoard = createEmptyBoard();
   const initialRoom: OnlineRoomState = {
     id: roomId,
     name: options.roomName || `Phòng ${roomId}`,
@@ -48,7 +49,7 @@ export async function createRoom(options: {
       O: null,
     },
     spectatorCount: 0,
-    board: createEmptyBoard(),
+    board: initialBoard,
     currentTurn: 'X',
     winner: null,
     winningLine: null,
@@ -69,7 +70,12 @@ export async function createRoom(options: {
     turnDeadline: Date.now() + (options.timePerTurn || 30) * 1000,
   };
 
-  await setDoc(roomRef, initialRoom);
+  const firestorePayload = {
+    ...initialRoom,
+    board: serializeBoard(initialBoard),
+  };
+
+  await setDoc(roomRef, firestorePayload);
   return { roomId, role: 'X' };
 }
 
@@ -87,7 +93,11 @@ export async function joinRoom(
     throw new Error('Phòng không tồn tại. Vui lòng kiểm tra lại mã phòng!');
   }
 
-  const roomData = snap.data() as OnlineRoomState;
+  const rawData = snap.data();
+  const roomData: OnlineRoomState = {
+    ...(rawData as any),
+    board: deserializeBoard(rawData.board, rawData.boardSize || BOARD_SIZE),
+  };
 
   let role: 'X' | 'O' | 'spectator' = 'spectator';
   const updatedPlayers = { ...roomData.players };
@@ -135,7 +145,12 @@ export async function joinRoom(
     updates.moveHistory = [];
   }
 
-  await updateDoc(roomRef, updates);
+  const firestoreUpdates: any = { ...updates };
+  if (updates.board) {
+    firestoreUpdates.board = serializeBoard(updates.board);
+  }
+
+  await updateDoc(roomRef, firestoreUpdates);
 
   return {
     room: { ...roomData, ...updates },
@@ -156,7 +171,12 @@ export function subscribeToRoom(
     roomRef,
     (snapshot) => {
       if (snapshot.exists()) {
-        onUpdate(snapshot.data() as OnlineRoomState);
+        const rawData = snapshot.data();
+        const room: OnlineRoomState = {
+          ...(rawData as any),
+          board: deserializeBoard(rawData.board, rawData.boardSize || BOARD_SIZE),
+        };
+        onUpdate(room);
       } else {
         onUpdate(null);
       }
@@ -181,7 +201,7 @@ export function subscribeToPublicRooms(
 
   return onSnapshot(q, (snapshot) => {
     const roomsList = snapshot.docs.map((docSnap) => {
-      const data = docSnap.data() as OnlineRoomState;
+      const data = docSnap.data();
       let count = 0;
       if (data.players?.X) count++;
       if (data.players?.O) count++;
@@ -217,8 +237,8 @@ export async function makeMoveInFirebase(
 ) {
   const roomRef = doc(db, ROOMS_COLLECTION, roomId);
 
-  const updates: Partial<OnlineRoomState> = {
-    board: newBoard,
+  const updates: any = {
+    board: serializeBoard(newBoard),
     currentTurn: nextTurn,
     status: gameStatus,
     winner,
@@ -284,8 +304,8 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
 
   if (rematchRequests[otherRole]) {
     // Both agreed to rematch! Reset board
-    const resetUpdates: Partial<OnlineRoomState> = {
-      board: createEmptyBoard(),
+    const resetUpdates: any = {
+      board: serializeBoard(createEmptyBoard()),
       currentTurn: 'X',
       status: 'playing',
       winner: null,
