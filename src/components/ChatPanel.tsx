@@ -22,10 +22,12 @@ const QUICK_PHRASES = [
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, playerName }) => {
   const [inputText, setInputText] = useState('');
   const [showQuickList, setShowQuickList] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSend = (e?: React.FormEvent) => {
@@ -86,7 +88,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
       )}
 
       {/* Message History */}
-      <div className="h-28 overflow-y-auto flex flex-col gap-1.5 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2 text-xs">
+      <div
+        ref={messagesContainerRef}
+        className="h-28 overflow-y-auto flex flex-col gap-1.5 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2 text-xs"
+      >
         {messages.length === 0 ? (
           <div className="text-center text-amber-800/60 my-auto italic">
             Chưa có tin nhắn nào. Thả icon hoặc trò chuyện cùng đối thủ!
@@ -127,7 +132,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
             </div>
           ))
         )}
-        <div ref={chatEndRef} />
       </div>
 
       {/* Input Form */}
