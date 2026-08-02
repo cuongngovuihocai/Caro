@@ -739,7 +739,7 @@ export default function App() {
           <div className="space-y-0.5">
             <p>Giấy học trò kẻ sẵn những ô vuông,</p>
             <p>Gom hai chữ X, O vào một góc.</p>
-            <p>Vai kề vai chung một bàn cờ nhỏ,</p>
+            <p>Vai kề vai chung bàn cờ nho nhỏ,</p>
             <p>Nét bút nghiêng bày tỏ chút tâm tình.</p>
           </div>
           <div className="hidden md:block w-px h-12 bg-amber-300/80" />
