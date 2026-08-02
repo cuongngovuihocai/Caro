@@ -28,6 +28,7 @@ import {
   makeMoveInFirebase,
   sendChatMessage,
   requestRematch,
+  handleOnlineTimeout,
   leaveRoom,
 } from './services/firebaseRoomService';
 
@@ -96,6 +97,16 @@ export default function App() {
       origin: { y: 0.6 },
     });
     soundFx.playWin();
+  }, []);
+
+  // Auto join room if room parameter exists in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomCode = params.get('room');
+    if (roomCode && roomCode.length === 6) {
+      setMode('online');
+      handleJoinOnlineRoom(roomCode);
+    }
   }, []);
 
   // Subscribe to public rooms in online mode
@@ -190,6 +201,46 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, [mode, gameStatus, currentTurn, moveHistory.length]);
+
+  // Online Game Timer Countdown Effect
+  useEffect(() => {
+    if (mode !== 'online' || !onlineRoom || gameStatus !== 'playing') {
+      if (mode === 'online' && gameStatus !== 'playing') {
+        setTurnTimeLeft(null);
+      }
+      return;
+    }
+
+    const maxTime = onlineRoom.timePerTurn || 30;
+
+    const timer = setInterval(() => {
+      if (!onlineRoom.turnDeadline) {
+        setTurnTimeLeft(maxTime);
+        return;
+      }
+
+      const now = Date.now();
+      const diffMs = onlineRoom.turnDeadline - now;
+      const remainingSec = Math.max(0, Math.ceil(diffMs / 1000));
+
+      setTurnTimeLeft(remainingSec);
+
+      if (remainingSec <= 5 && remainingSec > 0) {
+        soundFx.playTick();
+      }
+
+      // Automatically pass turn on timeout
+      if (remainingSec <= 0) {
+        if (myOnlineRole === onlineRoom.currentTurn) {
+          handleOnlineTimeout(onlineRoom.id, onlineRoom.currentTurn, maxTime);
+        } else if (myOnlineRole && myOnlineRole !== 'spectator' && diffMs < -2500) {
+          handleOnlineTimeout(onlineRoom.id, onlineRoom.currentTurn, maxTime);
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, [mode, onlineRoom?.id, onlineRoom?.turnDeadline, onlineRoom?.currentTurn, gameStatus, myOnlineRole]);
 
   // Trigger AI Move when in 'vs-ai' mode
   useEffect(() => {
@@ -598,7 +649,7 @@ export default function App() {
               ruleBlockedEnds={ruleBlockedEnds}
               setRuleBlockedEnds={setRuleBlockedEnds}
               turnTimeLeft={turnTimeLeft}
-              maxTurnTime={MAX_TURN_TIME}
+              maxTurnTime={mode === 'online' ? (onlineRoom?.timePerTurn || 30) : MAX_TURN_TIME}
               onUndo={handleUndo}
               onHint={handleHint}
               onSurrender={handleSurrender}
@@ -621,6 +672,12 @@ export default function App() {
                   : 'Người chơi 2'
               }
               isSpectator={mode === 'online' && myOnlineRole === 'spectator'}
+              rematchRequestedByMe={Boolean(
+                mode === 'online' && myOnlineRole && myOnlineRole !== 'spectator' && onlineRoom?.rematchRequests?.[myOnlineRole]
+              )}
+              rematchRequestedByOpponent={Boolean(
+                mode === 'online' && myOnlineRole && myOnlineRole !== 'spectator' && onlineRoom?.rematchRequests?.[myOnlineRole === 'X' ? 'O' : 'X']
+              )}
             />
 
             {/* The Caro Board */}
