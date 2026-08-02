@@ -103,7 +103,14 @@ export async function joinRoom(
   const updatedPlayers = { ...roomData.players };
   let newStatus = roomData.status;
 
-  if (!roomData.players.X) {
+  // 1. Check if player is already assigned as X or O
+  if (roomData.players.X?.name === playerName) {
+    role = 'X';
+    updatedPlayers.X = { name: playerName, connected: true };
+  } else if (roomData.players.O?.name === playerName) {
+    role = 'O';
+    updatedPlayers.O = { name: playerName, connected: true };
+  } else if (!roomData.players.X) {
     role = 'X';
     updatedPlayers.X = { name: playerName, connected: true };
   } else if (!roomData.players.O) {
@@ -115,34 +122,48 @@ export async function joinRoom(
 
   const isFullPlayers = updatedPlayers.X && updatedPlayers.O;
   if (isFullPlayers && (role === 'X' || role === 'O')) {
-    newStatus = 'playing';
+    if (newStatus !== 'ended') {
+      newStatus = 'playing';
+    }
   }
 
-  const joinMessage: ChatMessage = {
-    id: 'sys-' + Date.now(),
-    sender: 'Hệ thống',
-    senderRole: 'system',
-    text: `${playerName} đã tham gia phòng với vai trò ${role === 'spectator' ? 'Khán giả' : 'Người chơi ' + role}.`,
-    type: 'system',
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  };
+  const wasAlreadyInRoom =
+    (role === 'X' && roomData.players.X?.name === playerName) ||
+    (role === 'O' && roomData.players.O?.name === playerName);
 
   const updates: Partial<OnlineRoomState> = {
     players: updatedPlayers,
     status: newStatus,
-    spectatorCount: role === 'spectator' ? (roomData.spectatorCount || 0) + 1 : roomData.spectatorCount,
-    chatMessages: [...(roomData.chatMessages || []), joinMessage],
-    turnDeadline: Date.now() + roomData.timePerTurn * 1000,
+    spectatorCount:
+      role === 'spectator' && !wasAlreadyInRoom
+        ? (roomData.spectatorCount || 0) + 1
+        : roomData.spectatorCount,
   };
 
-  // Reset board to start fresh if a player joined to complete the 2-player game
-  if (isFullPlayers && (role === 'X' || role === 'O')) {
+  if (!wasAlreadyInRoom) {
+    const joinMessage: ChatMessage = {
+      id: 'sys-' + Date.now(),
+      sender: 'Hệ thống',
+      senderRole: 'system',
+      text: `${playerName} đã tham gia phòng với vai trò ${
+        role === 'spectator' ? 'Khán giả' : 'Người chơi ' + role
+      }.`,
+      type: 'system',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    updates.chatMessages = [...(roomData.chatMessages || []), joinMessage];
+  }
+
+  // Reset board to start fresh only if a NEW second player joined
+  const isNewPlayerJoiningFullGame = !wasAlreadyInRoom && isFullPlayers && (role === 'X' || role === 'O');
+  if (isNewPlayerJoiningFullGame) {
     updates.board = createEmptyBoard();
     updates.currentTurn = 'X';
     updates.winner = null;
     updates.winningLine = null;
     updates.lastMove = null;
     updates.moveHistory = [];
+    updates.turnDeadline = Date.now() + roomData.timePerTurn * 1000;
   }
 
   const firestoreUpdates: any = { ...updates };
