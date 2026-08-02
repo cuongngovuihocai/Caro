@@ -156,3 +156,5 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
     </div>
   );
 };
+
+export default ChatPanel;
