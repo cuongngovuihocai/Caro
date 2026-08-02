@@ -680,30 +680,54 @@ export default function App() {
               )}
             />
 
-            {/* The Caro Board */}
-            <Board
-              board={board}
-              onCellClick={handleCellClick}
-              currentTurn={currentTurn}
-              theme={theme}
-              lastMove={lastMove}
-              winningLine={winningLine}
-              hintCell={hintCell}
-              disabled={
-                gameStatus !== 'playing' ||
-                (mode === 'vs-ai' && currentTurn === 'O') ||
-                isAiThinking ||
-                (mode === 'online' && myOnlineRole === 'spectator')
-              }
-            />
+            {/* Game Playing Area (Board & Chat) */}
+            {mode === 'online' && onlineRoom ? (
+              <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row landscape:flex-row gap-4 items-center lg:items-start landscape:items-start justify-center mt-2">
+                {/* Left Column: Board */}
+                <div className="w-full lg:w-[55%] landscape:w-[55%] flex flex-col items-center">
+                  <Board
+                    board={board}
+                    onCellClick={handleCellClick}
+                    currentTurn={currentTurn}
+                    theme={theme}
+                    lastMove={lastMove}
+                    winningLine={winningLine}
+                    hintCell={hintCell}
+                    disabled={
+                      gameStatus !== 'playing' ||
+                      (mode === 'vs-ai' && currentTurn === 'O') ||
+                      isAiThinking ||
+                      (mode === 'online' && myOnlineRole === 'spectator')
+                    }
+                  />
+                </div>
 
-            {/* Chat & Reaction Panel for Online Mode */}
-            {mode === 'online' && onlineRoom && (
-              <ChatPanel
-                messages={onlineRoom.chatMessages || []}
-                onSendMessage={handleSendChatMessage}
-                playerName={playerName}
-              />
+                {/* Right Column: Chat Panel */}
+                <div className="w-full lg:w-[45%] landscape:w-[45%] flex flex-col items-center w-full">
+                  <ChatPanel
+                    messages={onlineRoom.chatMessages || []}
+                    onSendMessage={handleSendChatMessage}
+                    playerName={playerName}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-2xl mx-auto flex flex-col items-center mt-2">
+                <Board
+                  board={board}
+                  onCellClick={handleCellClick}
+                  currentTurn={currentTurn}
+                  theme={theme}
+                  lastMove={lastMove}
+                  winningLine={winningLine}
+                  hintCell={hintCell}
+                  disabled={
+                    gameStatus !== 'playing' ||
+                    (mode === 'vs-ai' && currentTurn === 'O') ||
+                    isAiThinking
+                  }
+                />
+              </div>
             )}
           </div>
         )}
