@@ -304,7 +304,8 @@ export async function makeMoveInFirebase(
   winner: PlayerSymbol | 'DRAW' | null,
   winningLine: { row: number; col: number }[] | null,
   moveHistory: Move[],
-  timePerTurn: number
+  timePerTurn: number,
+  surrenderBy?: PlayerSymbol | null
 ) {
   const roomRef = doc(db, ROOMS_COLLECTION, roomId);
 
@@ -319,24 +320,38 @@ export async function makeMoveInFirebase(
     turnDeadline: gameStatus === 'playing' ? Date.now() + timePerTurn * 1000 : null,
   };
 
+  if (surrenderBy) {
+    updates.surrenderBy = surrenderBy;
+  }
+
   if (gameStatus === 'ended') {
     let endText = '';
     try {
       const snap = await getDoc(roomRef);
       if (snap.exists()) {
         const roomData = snap.data();
-        if (winner && winner !== 'DRAW') {
+        if (surrenderBy) {
+          const loserName = roomData.players?.[surrenderBy]?.name || `Người chơi ${surrenderBy}`;
+          const winnerRole = surrenderBy === 'X' ? 'O' : 'X';
+          const winnerName = roomData.players?.[winnerRole]?.name || `Người chơi ${winnerRole}`;
+          endText = `${loserName} đã đầu hàng. Chiến thắng thuộc về ${winnerName}`;
+        } else if (winner && winner !== 'DRAW') {
           const winnerPlayer = roomData.players?.[winner];
           const winnerName = winnerPlayer?.name || `Người chơi ${winner}`;
-          endText = `Kết thúc trận đấu, ${winnerName} (cầm quân ${winner}) đã giành chiến thắng!`;
+          endText = `Chúc mừng ${winnerName} đã thắng ván cờ.`;
         } else {
           endText = 'Kết thúc trận đấu, hai người chơi hòa cờ!';
         }
       } else {
-        endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Kết thúc trận đấu, người chơi ${winner} (cầm quân ${winner}) đã giành chiến thắng!`;
+        if (surrenderBy) {
+          const winnerRole = surrenderBy === 'X' ? 'O' : 'X';
+          endText = `Người chơi ${surrenderBy} đã đầu hàng. Chiến thắng thuộc về người chơi ${winnerRole}`;
+        } else {
+          endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Chúc mừng người chơi ${winner} đã thắng ván cờ.`;
+        }
       }
     } catch {
-      endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Kết thúc trận đấu, người chơi ${winner} (cầm quân ${winner}) đã giành chiến thắng!`;
+      endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Chúc mừng người chơi ${winner} đã thắng ván cờ.`;
     }
 
     const sysMsg: ChatMessage = {
@@ -429,6 +444,7 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
       lastMove: null,
       moveHistory: [],
       rematchRequests: {},
+      surrenderBy: null,
       turnDeadline: Date.now() + timePerTurn * 1000,
     };
 
@@ -462,6 +478,28 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
       chatMessages: arrayUnion(sysMsg),
     });
   }
+}
+
+/**
+ * Decline rematch request
+ */
+export async function declineRematch(roomId: string, playerRole: 'X' | 'O', currentRoomState: OnlineRoomState) {
+  const roomRef = doc(db, ROOMS_COLLECTION, roomId);
+  const declinerName = currentRoomState.players[playerRole]?.name || `Người chơi ${playerRole}`;
+
+  const sysMsg: ChatMessage = {
+    id: 'sys-' + Date.now(),
+    sender: 'Hệ thống',
+    senderRole: 'system',
+    text: `${declinerName} đã từ chối yêu cầu ván mới.`,
+    type: 'system',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+
+  await updateDoc(roomRef, {
+    rematchRequests: {},
+    chatMessages: arrayUnion(sysMsg),
+  });
 }
 
 /**
