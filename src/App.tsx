@@ -139,6 +139,13 @@ export default function App() {
         setMoveHistory(updatedRoom.moveHistory || []);
         setRuleBlockedEnds(updatedRoom.ruleBlockedEnds || false);
 
+        // Keep local role in sync with actual players in room
+        if (updatedRoom.players.X?.name === playerName) {
+          setMyOnlineRole('X');
+        } else if (updatedRoom.players.O?.name === playerName) {
+          setMyOnlineRole('O');
+        }
+
         if (
           updatedRoom.status === 'ended' &&
           updatedRoom.winner &&
