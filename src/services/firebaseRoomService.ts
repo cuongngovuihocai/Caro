@@ -8,11 +8,13 @@ import {
   query,
   where,
   getDoc,
+  getDocs,
   arrayUnion,
   deleteDoc,
 } from '../lib/firebase';
 import { OnlineRoomState, PlayerSymbol, Move, ChatMessage } from '../types';
 import { createEmptyBoard, BOARD_SIZE, serializeBoard, deserializeBoard } from '../utils/caroLogic';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 const ROOMS_COLLECTION = 'caro_rooms';
 
@@ -68,6 +70,7 @@ export async function createRoom(options: {
     ],
     rematchRequests: {},
     turnDeadline: Date.now() + (options.timePerTurn || 30) * 1000,
+    lastHeartbeat: Date.now(),
   };
 
   const firestorePayload = {
@@ -134,6 +137,7 @@ export async function joinRoom(
   const updates: Partial<OnlineRoomState> = {
     players: updatedPlayers,
     status: newStatus,
+    lastHeartbeat: Date.now(),
     spectatorCount:
       role === 'spectator' && !wasAlreadyInRoom
         ? (roomData.spectatorCount || 0) + 1
@@ -210,6 +214,37 @@ export function subscribeToRoom(
 }
 
 /**
+ * Scan Firestore and purge abandoned ghost rooms (0 players or created > 2 hours ago)
+ */
+export async function purgeStaleRooms() {
+  try {
+    const roomsRef = collection(db, ROOMS_COLLECTION);
+    const snap = await getDocs(roomsRef);
+    const now = Date.now();
+    const MAX_WAITING_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours max lifetime for unjoined waiting rooms
+
+    snap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const roomId = docSnap.id;
+      const age = now - (data.createdAt || 0);
+
+      const hasX = Boolean(data.players?.X);
+      const hasO = Boolean(data.players?.O);
+
+      const isZeroPlayers = !hasX && !hasO;
+      const isStaleWaiting = data.status === 'waiting' && age > MAX_WAITING_AGE_MS;
+
+      if (isZeroPlayers || isStaleWaiting) {
+        console.log(`[Auto-Cleanup] Deleting ghost room #${roomId}`);
+        deleteDoc(doc(db, ROOMS_COLLECTION, roomId)).catch(() => {});
+      }
+    });
+  } catch (err) {
+    console.error('Lỗi khi dọn dẹp phòng cũ:', err);
+  }
+}
+
+/**
  * Subscribe to list of public rooms
  */
 export function subscribeToPublicRooms(
@@ -217,25 +252,40 @@ export function subscribeToPublicRooms(
     rooms: { id: string; name: string; playersCount: number; status: string; timePerTurn: number; hostName: string }[]
   ) => void
 ) {
+  // Trigger passive cleanup of ghost/stale rooms on subscription
+  purgeStaleRooms();
+
   const roomsRef = collection(db, ROOMS_COLLECTION);
   const q = query(roomsRef, where('isPublic', '==', true));
 
   return onSnapshot(q, (snapshot) => {
-    const roomsList = snapshot.docs.map((docSnap) => {
+    const roomsList: { id: string; name: string; playersCount: number; status: string; timePerTurn: number; hostName: string }[] = [];
+
+    snapshot.docs.forEach((docSnap) => {
       const data = docSnap.data();
+      const roomId = docSnap.id;
       let count = 0;
       if (data.players?.X) count++;
       if (data.players?.O) count++;
 
-      return {
+      const isZeroPlayers = count === 0;
+
+      if (isZeroPlayers) {
+        // Delete ghost room in background
+        deleteDoc(doc(db, ROOMS_COLLECTION, roomId)).catch(() => {});
+        return;
+      }
+
+      roomsList.push({
         id: data.id,
         name: data.name || `Phòng ${data.id}`,
         playersCount: count,
         status: data.status || 'waiting',
         timePerTurn: data.timePerTurn || 30,
         hostName: data.players?.X?.name || 'Chủ phòng',
-      };
+      });
     });
+
     onUpdate(roomsList);
   });
 }
@@ -415,7 +465,51 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
 }
 
 /**
- * Leave room and automatically delete room data when both players have left
+ * Keepalive REST handler for browser tab close / window unload events
+ */
+export function leaveRoomKeepAlive(roomId: string, playerRole: 'X' | 'O' | 'spectator' | null) {
+  if (!roomId || !playerRole || playerRole === 'spectator') return;
+
+  const projectId = firebaseConfig.projectId;
+  const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
+  const apiKey = firebaseConfig.apiKey;
+
+  if (!projectId || !apiKey) return;
+
+  const restUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${ROOMS_COLLECTION}/${roomId}?key=${apiKey}`;
+
+  // If host (X) leaves or if both players leave, delete room document via REST with keepalive: true
+  if (playerRole === 'X') {
+    fetch(restUrl, {
+      method: 'DELETE',
+      keepalive: true,
+    }).catch(() => {});
+  } else if (playerRole === 'O') {
+    // Set players.O to null and status to waiting
+    const patchUrl = `${restUrl}&updateMask.fieldPaths=players.O&updateMask.fieldPaths=status`;
+    fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          players: {
+            mapValue: {
+              fields: {
+                X: { mapValue: { fields: { name: { stringValue: 'Người chơi X' }, connected: { booleanValue: true } } } },
+                O: { nullValue: null },
+              },
+            },
+          },
+          status: { stringValue: 'waiting' },
+        },
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  }
+}
+
+/**
+ * Leave room and automatically delete room data when both players or host have left
  */
 export async function leaveRoom(roomId: string, playerRole: 'X' | 'O' | 'spectator' | null) {
   if (!roomId) return;
@@ -439,13 +533,15 @@ export async function leaveRoom(roomId: string, playerRole: 'X' | 'O' | 'spectat
       return;
     }
 
-    // Auto cleanup: If both players have left (both X and O are null), delete the room immediately
-    if (!updatedPlayers.X && !updatedPlayers.O) {
+    // Auto cleanup: If both players left OR host (X) leaves a waiting room with no O, delete room immediately
+    const noPlayersLeft = !updatedPlayers.X && !updatedPlayers.O;
+    const hostLeftWaitingRoom = playerRole === 'X' && (data.status === 'waiting' || !updatedPlayers.O);
+
+    if (noPlayersLeft || hostLeftWaitingRoom) {
       await deleteDoc(roomRef);
-      console.log(`Đã xóa phòng ${roomId} vì cả 2 người chơi đã rời phòng.`);
+      console.log(`[Auto-Cleanup] Đã xóa phòng ${roomId} vì tất cả người chơi / chủ phòng đã rời phòng.`);
     } else {
       // One player remains, notify and set room status to waiting
-      const remainingRole = updatedPlayers.X ? 'X' : 'O';
       const leftPlayerName = playerRole ? data.players[playerRole]?.name || playerRole : 'Người chơi';
 
       const sysMsg: ChatMessage = {
@@ -460,6 +556,7 @@ export async function leaveRoom(roomId: string, playerRole: 'X' | 'O' | 'spectat
       await updateDoc(roomRef, {
         players: updatedPlayers,
         status: 'waiting',
+        lastHeartbeat: Date.now(),
         chatMessages: arrayUnion(sysMsg),
       });
     }
