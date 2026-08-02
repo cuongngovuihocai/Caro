@@ -107,3 +107,6 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, stats, 
     </div>
   );
 };
+
+export default StatsModal;
+
