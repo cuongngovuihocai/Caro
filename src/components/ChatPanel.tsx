@@ -43,7 +43,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-amber-50/90 border border-amber-200/80 rounded-2xl shadow-sm p-3 my-3 select-none">
+    <div className="w-full bg-amber-50/90 border border-amber-200/80 rounded-2xl shadow-sm p-3 my-1 select-none flex flex-col justify-between">
       <div className="flex items-center justify-between border-b border-amber-200 pb-2 mb-2">
         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
           <MessageSquare className="w-4 h-4 text-amber-800" />
@@ -90,7 +90,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
       {/* Message History */}
       <div
         ref={messagesContainerRef}
-        className="h-28 overflow-y-auto flex flex-col gap-1.5 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2 text-xs"
+        className="h-28 lg:h-[360px] landscape:h-[260px] overflow-y-auto flex flex-col gap-1.5 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2 text-xs"
       >
         {messages.length === 0 ? (
           <div className="text-center text-amber-800/60 my-auto italic">
