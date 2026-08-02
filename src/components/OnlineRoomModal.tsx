@@ -40,9 +40,19 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
   errorMsg,
 }) => {
   const [activeTab, setActiveTab] = useState<'join' | 'create' | 'public'>('join');
-  const [joinCode, setJoinCode] = useState('');
+  const [joinCode, setJoinCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('room');
+    return code && code.length === 6 ? code : '';
+  });
   const [copiedCode, setCopiedCode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isFromInviteLink = React.useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('room');
+    return Boolean(code && code.length === 6);
+  }, []);
 
   // Room Creation Form state
   const [roomName, setRoomName] = useState(`Phòng cờ của ${playerName}`);
@@ -212,6 +222,14 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
       {/* Tab Content: Join Room */}
       {activeTab === 'join' && (
         <div className="flex flex-col gap-3">
+          {isFromInviteLink && joinCode.length === 6 && (
+            <div className="p-3 bg-emerald-100/90 border border-emerald-300 text-emerald-950 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+              <span>
+                Mã phòng <strong>{joinCode}</strong> đã được tự động điền từ liên kết mời. Vui lòng kiểm tra/nhập lại <strong>Tên Người Chơi Của Bạn</strong> ở ô trên rồi nhấn <strong>Vào Phòng</strong>.
+              </span>
+            </div>
+          )}
           <p className="text-xs text-amber-800 font-medium">
             Nhập mã gồm 6 chữ số từ bạn bè của bạn để tham gia phòng chơi ngay lập tức:
           </p>
