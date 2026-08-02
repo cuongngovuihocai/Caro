@@ -42,12 +42,33 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
   const [activeTab, setActiveTab] = useState<'join' | 'create' | 'public'>('join');
   const [joinCode, setJoinCode] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Room Creation Form state
   const [roomName, setRoomName] = useState(`Phòng cờ của ${playerName}`);
   const [timePerTurn, setTimePerTurn] = useState(30);
   const [isPublic, setIsPublic] = useState(true);
   const [ruleBlockedEnds, setRuleBlockedEnds] = useState(false);
+
+  const handleJoin = async (code: string) => {
+    if (!code || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onJoinRoom(code);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onCreateRoom({ roomName, timePerTurn, isPublic, ruleBlockedEnds });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCopyCode = () => {
     if (!roomState?.id) return;
@@ -203,11 +224,11 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
               className="flex-1 px-4 py-2.5 bg-white border border-amber-300 rounded-xl text-center font-mono text-xl font-bold tracking-widest text-amber-950 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
             />
             <button
-              onClick={() => onJoinRoom(joinCode)}
-              disabled={joinCode.length !== 6}
+              onClick={() => handleJoin(joinCode)}
+              disabled={joinCode.length !== 6 || isSubmitting}
               className="px-5 py-2.5 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-all text-sm"
             >
-              <span>Vào Phòng</span>
+              <span>{isSubmitting ? 'Đang vào...' : 'Vào Phòng'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -267,11 +288,12 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
           </label>
 
           <button
-            onClick={() => onCreateRoom({ roomName, timePerTurn, isPublic, ruleBlockedEnds })}
-            className="w-full py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold shadow-md cursor-pointer flex items-center justify-center gap-2 transition-all mt-2 text-sm"
+            onClick={handleCreate}
+            disabled={isSubmitting}
+            className="w-full py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold shadow-md disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 transition-all mt-2 text-sm"
           >
             <Plus className="w-5 h-5" />
-            <span>Tạo Phòng & Lấy Mã</span>
+            <span>{isSubmitting ? 'Đang tạo phòng...' : 'Tạo Phòng & Lấy Mã'}</span>
           </button>
         </div>
       )}
@@ -318,8 +340,9 @@ export const OnlineRoomModal: React.FC<OnlineRoomModalProps> = ({
                   </div>
 
                   <button
-                    onClick={() => onJoinRoom(room.id)}
-                    className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                    onClick={() => handleJoin(room.id)}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors"
                   >
                     Vào Chơi
                   </button>
