@@ -270,12 +270,30 @@ export async function makeMoveInFirebase(
   };
 
   if (gameStatus === 'ended') {
-    const endText = winner === 'DRAW' ? 'Hòa cờ!' : `Người chơi ${winner} đã giành chiến thắng!`;
+    let endText = '';
+    try {
+      const snap = await getDoc(roomRef);
+      if (snap.exists()) {
+        const roomData = snap.data();
+        if (winner && winner !== 'DRAW') {
+          const winnerPlayer = roomData.players?.[winner];
+          const winnerName = winnerPlayer?.name || `Người chơi ${winner}`;
+          endText = `Kết thúc trận đấu, ${winnerName} (cầm quân ${winner}) đã giành chiến thắng!`;
+        } else {
+          endText = 'Kết thúc trận đấu, hai người chơi hòa cờ!';
+        }
+      } else {
+        endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Kết thúc trận đấu, người chơi ${winner} (cầm quân ${winner}) đã giành chiến thắng!`;
+      }
+    } catch {
+      endText = winner === 'DRAW' ? 'Kết thúc trận đấu, hai người chơi hòa cờ!' : `Kết thúc trận đấu, người chơi ${winner} (cầm quân ${winner}) đã giành chiến thắng!`;
+    }
+
     const sysMsg: ChatMessage = {
       id: 'sys-' + Date.now(),
       sender: 'Hệ thống',
       senderRole: 'system',
-      text: `Kết thúc trận đấu: ${endText}`,
+      text: endText,
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -316,6 +334,32 @@ export async function sendChatMessage(
 }
 
 /**
+ * Handle turn timeout in online mode: automatically pass turn to next player
+ */
+export async function handleOnlineTimeout(roomId: string, currentTurn: PlayerSymbol, timePerTurn: number) {
+  const roomRef = doc(db, ROOMS_COLLECTION, roomId);
+  const nextTurn = currentTurn === 'X' ? 'O' : 'X';
+  const sysMsg: ChatMessage = {
+    id: 'sys-' + Date.now(),
+    sender: 'Hệ thống',
+    senderRole: 'system',
+    text: `Hết thời gian (${timePerTurn || 30}s)! Lượt đi tự động chuyển sang cho quân ${nextTurn}.`,
+    type: 'system',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+
+  try {
+    await updateDoc(roomRef, {
+      currentTurn: nextTurn,
+      turnDeadline: Date.now() + (timePerTurn || 30) * 1000,
+      chatMessages: arrayUnion(sysMsg),
+    });
+  } catch (err) {
+    console.error('Error handling online timeout:', err);
+  }
+}
+
+/**
  * Request or accept rematch
  */
 export async function requestRematch(roomId: string, playerRole: 'X' | 'O', currentRoomState: OnlineRoomState) {
@@ -325,6 +369,7 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
 
   if (rematchRequests[otherRole]) {
     // Both agreed to rematch! Reset board
+    const timePerTurn = currentRoomState.timePerTurn || 30;
     const resetUpdates: any = {
       board: serializeBoard(createEmptyBoard()),
       currentTurn: 'X',
@@ -334,14 +379,14 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
       lastMove: null,
       moveHistory: [],
       rematchRequests: {},
-      turnDeadline: Date.now() + currentRoomState.timePerTurn * 1000,
+      turnDeadline: Date.now() + timePerTurn * 1000,
     };
 
     const sysMsg: ChatMessage = {
       id: 'sys-' + Date.now(),
       sender: 'Hệ thống',
       senderRole: 'system',
-      text: 'Cả hai người chơi đã đồng ý tái đấu! Bắt đầu ván mới.',
+      text: 'Cả hai người chơi đã đồng ý ván mới! Bắt đầu ván mới.',
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -352,11 +397,12 @@ export async function requestRematch(roomId: string, playerRole: 'X' | 'O', curr
     });
   } else {
     // Just request rematch
+    const requesterName = currentRoomState.players[playerRole]?.name || `Người chơi ${playerRole}`;
     const sysMsg: ChatMessage = {
       id: 'sys-' + Date.now(),
       sender: 'Hệ thống',
       senderRole: 'system',
-      text: `${currentRoomState.players[playerRole]?.name || playerRole} muốn đấu lại!`,
+      text: `${requesterName} đã yêu cầu ván mới. Đang chờ đối thủ đồng ý...`,
       type: 'system',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
