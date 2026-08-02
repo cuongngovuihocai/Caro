@@ -1,0 +1,6 @@
+{
+  "name": "Trò Chơi Cờ Caro",
+  "description": "Trò chơi cờ Caro truyền thống với giao diện giấy ô ly thân thuộc, chế độ chơi với Máy AI và Chơi Trực Tuyến cùng bạn bè.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

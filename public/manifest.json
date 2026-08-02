@@ -1,0 +1,30 @@
+{
+  "short_name": "Caro",
+  "name": "Cờ Caro",
+  "description": "Trò chơi Cờ Caro Online và Đấu với Máy",
+  "icons": [
+    {
+      "src": "/Caro/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/Caro/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/Caro/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/Caro/",
+  "background_color": "#fef3c7",
+  "theme_color": "#d97706",
+  "display": "standalone",
+  "orientation": "portrait"
+}

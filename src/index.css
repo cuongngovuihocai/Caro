@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Grape+Nuts&family=Patrick+Hand&family=Shantell+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+@theme {
+  --font-sans: 'Patrick Hand', cursive, sans-serif;
+  --font-serif: 'Patrick Hand', cursive, sans-serif;
+  --font-patrick: 'Patrick Hand', cursive, sans-serif;
+  --font-shantell: 'Shantell Sans', cursive, sans-serif;
+  --font-grape: 'Grape Nuts', cursive, sans-serif;
+}
+
+:root, body {
+  font-family: 'Patrick Hand', cursive, sans-serif;
+  font-size: 18px;
+}
+
+.font-patrick {
+  font-family: 'Patrick Hand', cursive, sans-serif;
+  font-size: 1.125rem;
+}
+
+.font-shantell {
+  font-family: 'Shantell Sans', cursive, sans-serif;
+}
+
+.font-grape {
+  font-family: 'Grape Nuts', cursive, sans-serif;
+}
+
+

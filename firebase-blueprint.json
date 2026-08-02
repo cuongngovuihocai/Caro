@@ -1,0 +1,20 @@
+{
+  "entities": {
+    "rooms": {
+      "title": "Rooms",
+      "description": "Online Caro game rooms",
+      "properties": {
+        "id": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string" },
+        "turn": { "type": "string" },
+        "winner": { "type": "string" },
+        "rule": { "type": "string" },
+        "players": { "type": "object" },
+        "board": { "type": "string" },
+        "moveHistory": { "type": "array" }
+      },
+      "required": ["id", "status", "turn", "rule"]
+    }
+  }
+}
