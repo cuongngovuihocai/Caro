@@ -8,6 +8,46 @@ export function createEmptyBoard(size: number = BOARD_SIZE): (PlayerSymbol | nul
     .map(() => Array(size).fill(null));
 }
 
+// Convert 2D board array into 1D flat array for Firestore compatibility (Firestore does not allow nested arrays)
+export function serializeBoard(board: (PlayerSymbol | null)[][]): (PlayerSymbol | null)[] {
+  if (!board || !Array.isArray(board)) return Array(BOARD_SIZE * BOARD_SIZE).fill(null);
+  const flat: (PlayerSymbol | null)[] = [];
+  for (let r = 0; r < board.length; r++) {
+    const row = board[r];
+    if (!row) continue;
+    for (let c = 0; c < row.length; c++) {
+      flat.push(row[c] || null);
+    }
+  }
+  return flat;
+}
+
+// Reconstruct 2D board array from 1D flat array or legacy 2D array
+export function deserializeBoard(rawBoard: any, size: number = BOARD_SIZE): (PlayerSymbol | null)[][] {
+  if (!rawBoard) return createEmptyBoard(size);
+
+  // Backward compatibility: If rawBoard is already a 2D array
+  if (Array.isArray(rawBoard) && Array.isArray(rawBoard[0])) {
+    return rawBoard;
+  }
+
+  // 1D flat array from Firestore
+  if (Array.isArray(rawBoard)) {
+    const board: (PlayerSymbol | null)[][] = [];
+    for (let r = 0; r < size; r++) {
+      const row: (PlayerSymbol | null)[] = [];
+      for (let c = 0; c < size; c++) {
+        const val = rawBoard[r * size + c];
+        row.push(val === 'X' || val === 'O' ? val : null);
+      }
+      board.push(row);
+    }
+    return board;
+  }
+
+  return createEmptyBoard(size);
+}
+
 // Check Gomoku / Caro win condition
 export function checkWin(
   board: (PlayerSymbol | null)[][],
