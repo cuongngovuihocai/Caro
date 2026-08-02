@@ -28,6 +28,7 @@ import {
   makeMoveInFirebase,
   sendChatMessage,
   requestRematch,
+  declineRematch,
   handleOnlineTimeout,
   leaveRoom,
   purgeStaleRooms,
@@ -72,6 +73,7 @@ export default function App() {
     { id: string; name: string; playersCount: number; status: string; timePerTurn: number; hostName: string }[]
   >([]);
   const [onlineError, setOnlineError] = useState<string | null>(null);
+  const [surrenderBy, setSurrenderBy] = useState<PlayerSymbol | null>(null);
 
   // Sound Sync
   useEffect(() => {
@@ -100,13 +102,12 @@ export default function App() {
     soundFx.playWin();
   }, []);
 
-  // Auto join room if room parameter exists in URL
+  // Switch to online mode if room parameter exists in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomCode = params.get('room');
     if (roomCode && roomCode.length === 6) {
       setMode('online');
-      handleJoinOnlineRoom(roomCode);
     }
   }, []);
 
@@ -213,6 +214,12 @@ export default function App() {
     }
 
     const maxTime = onlineRoom.timePerTurn || 30;
+
+    // Timer only starts AFTER player 1 places the first move!
+    if ((onlineRoom.moveHistory || []).length === 0) {
+      setTurnTimeLeft(maxTime);
+      return;
+    }
 
     const timer = setInterval(() => {
       if (!onlineRoom.turnDeadline) {
@@ -464,14 +471,17 @@ export default function App() {
         winnerRole,
         null,
         moveHistory,
-        onlineRoom.timePerTurn
+        onlineRoom.timePerTurn,
+        myOnlineRole
       );
       return;
     }
 
-    const surrenderingWinner = currentTurn === 'X' ? 'O' : 'X';
+    const surrenderingPlayer = currentTurn;
+    const winningPlayer = currentTurn === 'X' ? 'O' : 'X';
     setGameStatus('ended');
-    setWinner(surrenderingWinner);
+    setWinner(winningPlayer);
+    setSurrenderBy(surrenderingPlayer);
 
     if (mode === 'vs-ai') {
       const updated = recordGameResult('vs-ai', 'loss');
@@ -498,7 +508,14 @@ export default function App() {
     setHintCell(null);
     setIsAiThinking(false);
     setTurnTimeLeft(MAX_TURN_TIME);
+    setSurrenderBy(null);
     soundFx.playClick();
+  };
+
+  const handleDeclineRematch = () => {
+    if (mode === 'online' && onlineRoom && myOnlineRole && myOnlineRole !== 'spectator') {
+      declineRematch(onlineRoom.id, myOnlineRole, onlineRoom);
+    }
   };
 
   // Online Room Operations via Firebase
@@ -658,6 +675,7 @@ export default function App() {
               onHint={handleHint}
               onSurrender={handleSurrender}
               onRestart={handleRestart}
+              onDeclineRematch={handleDeclineRematch}
               canUndo={mode === 'vs-ai' ? moveHistory.length >= 2 : moveHistory.length >= 1}
               gameStatus={gameStatus}
               winner={winner}
@@ -682,6 +700,8 @@ export default function App() {
               rematchRequestedByOpponent={Boolean(
                 mode === 'online' && myOnlineRole && myOnlineRole !== 'spectator' && onlineRoom?.rematchRequests?.[myOnlineRole === 'X' ? 'O' : 'X']
               )}
+              hasStartedMoves={moveHistory.length > 0}
+              surrenderBy={mode === 'online' ? (onlineRoom?.surrenderBy || surrenderBy) : surrenderBy}
             />
 
             {/* Game Playing Area (Board & Chat) */}
