@@ -30,6 +30,8 @@ import {
   requestRematch,
   handleOnlineTimeout,
   leaveRoom,
+  leaveRoomKeepAlive,
+  purgeStaleRooms,
 } from './services/firebaseRoomService';
 
 export default function App() {
@@ -555,22 +557,26 @@ export default function App() {
     }
   };
 
-  // Handle tab close / unload to clean up online room
+  // Handle tab close and unload to clean up online room
   useEffect(() => {
     if (!onlineRoom?.id || !myOnlineRole) return;
 
     const handleUnload = () => {
+      leaveRoomKeepAlive(onlineRoom.id, myOnlineRole);
       leaveRoom(onlineRoom.id, myOnlineRole);
     };
 
     window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
     return () => {
       window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
     };
   }, [onlineRoom?.id, myOnlineRole]);
 
   const handleRefreshPublicRooms = () => {
-    // Firestore syncs public rooms in real time automatically
+    purgeStaleRooms();
   };
 
   const handleLeaveOnlineRoom = async () => {
