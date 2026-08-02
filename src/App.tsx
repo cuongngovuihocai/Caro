@@ -30,7 +30,6 @@ import {
   requestRematch,
   handleOnlineTimeout,
   leaveRoom,
-  leaveRoomKeepAlive,
   purgeStaleRooms,
 } from './services/firebaseRoomService';
 
@@ -562,7 +561,6 @@ export default function App() {
     if (!onlineRoom?.id || !myOnlineRole) return;
 
     const handleUnload = () => {
-      leaveRoomKeepAlive(onlineRoom.id, myOnlineRole);
       leaveRoom(onlineRoom.id, myOnlineRole);
     };
 
