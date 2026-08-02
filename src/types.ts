@@ -64,4 +64,5 @@ export interface OnlineRoomState {
   rematchRequests: { X?: boolean; O?: boolean };
   turnDeadline: number | null;
   lastHeartbeat?: number;
+  surrenderBy?: PlayerSymbol | null;
 }
