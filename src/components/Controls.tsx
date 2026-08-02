@@ -23,6 +23,8 @@ interface ControlsProps {
   p1Name?: string;
   p2Name?: string;
   isSpectator?: boolean;
+  rematchRequestedByMe?: boolean;
+  rematchRequestedByOpponent?: boolean;
 }
 
 export const Controls: React.FC<ControlsProps> = ({
@@ -46,6 +48,8 @@ export const Controls: React.FC<ControlsProps> = ({
   p1Name = 'Người chơi 1',
   p2Name = 'Máy AI',
   isSpectator = false,
+  rematchRequestedByMe = false,
+  rematchRequestedByOpponent = false,
 }) => {
   // Timer bar percentage
   const timerPercent = turnTimeLeft !== null && maxTurnTime > 0 ? (turnTimeLeft / maxTurnTime) * 100 : 100;
@@ -232,12 +236,20 @@ export const Controls: React.FC<ControlsProps> = ({
         {/* New Game */}
         <button
           onClick={onRestart}
-          disabled={isSpectator}
-          style={{ backgroundColor: '#EA738D' }}
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl hover:bg-amber-800 text-white font-bold shadow-md transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={isSpectator || rematchRequestedByMe}
+          style={{ backgroundColor: rematchRequestedByOpponent ? '#10B981' : '#EA738D' }}
+          className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl hover:bg-amber-800 text-white font-bold shadow-md transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+            rematchRequestedByOpponent ? 'animate-bounce' : ''
+          }`}
         >
           <Play className="w-4 h-4 fill-white" />
-          <span style={{ color: '#ffffff' }}>Ván mới</span>
+          <span style={{ color: '#ffffff' }}>
+            {rematchRequestedByMe
+              ? 'Đang chờ đối thủ... (1/2)'
+              : rematchRequestedByOpponent
+              ? 'Chấp nhận Ván mới (1/2)'
+              : 'Ván mới'}
+          </span>
         </button>
       </div>
     </div>
