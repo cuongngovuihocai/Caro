@@ -63,4 +63,5 @@ export interface OnlineRoomState {
   chatMessages: ChatMessage[];
   rematchRequests: { X?: boolean; O?: boolean };
   turnDeadline: number | null;
+  lastHeartbeat?: number;
 }
