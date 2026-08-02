@@ -187,3 +187,5 @@ export const Board: React.FC<BoardProps> = ({
     </div>
   );
 };
+
+export default Board;
