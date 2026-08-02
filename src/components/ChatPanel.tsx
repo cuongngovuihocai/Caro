@@ -16,7 +16,7 @@ const QUICK_PHRASES = [
   'Cho xin hòa nhé?',
   'Thách đấu lại không?',
   'Suy nghĩ lâu thế?',
-  'Cố lên nhé!',
+  'Cố lên!',
 ];
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, playerName }) => {
@@ -47,7 +47,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
       <div className="flex items-center justify-between border-b border-amber-200 pb-2 mb-2">
         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
           <MessageSquare className="w-4 h-4 text-amber-800" />
-          <span>Trò Chuyện & Biểu Cảm Ván Đấu</span>
+          <span>Trò Chuyện</span>
         </div>
         <button
           onClick={() => setShowQuickList(!showQuickList)}
@@ -90,10 +90,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
       {/* Message History */}
       <div
         ref={messagesContainerRef}
-        className="h-28 lg:h-[360px] landscape:h-[260px] overflow-y-auto flex flex-col gap-1.5 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2 text-xs"
+        className="h-28 lg:h-[360px] landscape:h-[260px] overflow-y-auto flex flex-col gap-2 pr-1 mb-2 bg-white/70 border border-amber-200/60 rounded-xl p-2.5 text-[16px]"
       >
         {messages.length === 0 ? (
-          <div className="text-center text-amber-800/60 my-auto italic">
+          <div className="text-center text-amber-800/60 my-auto italic text-[15px]">
             Chưa có tin nhắn nào. Thả icon hoặc trò chuyện cùng đối thủ!
           </div>
         ) : (
@@ -109,22 +109,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
               }`}
             >
               {msg.type === 'system' ? (
-                <span className="bg-amber-200/70 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full text-center">
+                <span className="bg-amber-200/80 text-amber-950 text-[15px] font-bold px-3 py-1 rounded-full text-center max-w-full leading-normal shadow-2xs">
                   {msg.text}
                 </span>
               ) : (
                 <div
-                  className={`max-w-[80%] rounded-xl px-3 py-1.5 ${
+                  className={`max-w-[85%] rounded-xl px-3 py-2 ${
                     msg.sender === playerName
                       ? 'bg-amber-700 text-white rounded-br-none'
                       : 'bg-amber-100 text-amber-950 border border-amber-200 rounded-bl-none'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-bold text-[10px] opacity-90">{msg.sender}</span>
-                    <span className="text-[9px] opacity-75">{msg.time}</span>
+                    <span className="font-bold text-[12px] opacity-90">{msg.sender}</span>
+                    <span className="text-[11px] opacity-75">{msg.time}</span>
                   </div>
-                  <p className={msg.type === 'emoji' ? 'text-2xl' : 'text-xs leading-relaxed font-medium'}>
+                  <p className={msg.type === 'emoji' ? 'text-3xl' : 'text-[16px] leading-relaxed font-medium'}>
                     {msg.text}
                   </p>
                 </div>
@@ -142,15 +142,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, p
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Nhập nội dung trò chuyện..."
           maxLength={120}
-          className="flex-1 px-3 py-1.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold text-amber-950 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+          className="flex-1 px-3 py-2 bg-white border border-amber-300 rounded-xl text-[16px] font-semibold text-amber-950 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
         />
         <button
           type="submit"
           disabled={!inputText.trim()}
-          className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold text-xs shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 transition-all"
+          className="px-3.5 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold text-[15px] shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 transition-all"
         >
           <span>Gửi</span>
-          <Send className="w-3.5 h-3.5" />
+          <Send className="w-4 h-4" />
         </button>
       </form>
     </div>
